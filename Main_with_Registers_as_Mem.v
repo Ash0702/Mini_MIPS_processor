@@ -7,7 +7,7 @@ module DistributedMemory (
 );
  reg [31:0] Address_locations [1023:0];
  assign dpo = Address_locations[dpra];
- always @(a or d or we ) begin
+ always @(negedge clk) begin
  if(we) begin
  Address_locations[a] = d;
  end
@@ -233,88 +233,94 @@ module Controller (
  jal = 0;
  end
  else if(opcode == 0) begin // Rtype instruction
- immediate = 0;
- jump = 0;
- branch = 0;
- select_ALU_or_Mem = 0;
- write_reg = 1;
  data_write = 0;
+ write_reg = 1;
+ immediate = 0;
+ select_ALU_or_Mem = 0;
+ branch = 0;
+ jump = 0;
  jal = 0;
  end
  else if(opcode == 1 ||opcode == 2 ||opcode == 3 ||opcode == 4 ||opcode == 5) begin //addi, andi , xori, ori , addiu
- immediate = 1;
- jump = 0;
- branch = 0;
- select_ALU_or_Mem = 0;
- write_reg = 1;
  data_write = 0;
+ write_reg = 1;
+ immediate = 1;
+ select_ALU_or_Mem = 0;
+ branch = 0;
+ jump = 0;
  jal = 0;
  end
  else if(opcode == 7) begin // lw
- immediate = 1;
- jump = 0;
- branch = 0;
- select_ALU_or_Mem = 1;
  write_reg = 1;
  data_write = 0;
+ immediate = 1;
+ select_ALU_or_Mem = 1;
+ branch = 0;
+ jump = 0;
  jal = 0;
  end
  else if(opcode == 8) begin // sw
- immediate = 1;
- jump = 0;
- branch = 0;
- select_ALU_or_Mem = 0;
  write_reg = 0;
  data_write = 1;
+ immediate = 1;
+ select_ALU_or_Mem = 0;
+ branch = 0;
+ jump = 0;
  jal = 0;
  end
  else if(opcode == 9 || opcode == 10) begin // slti , seq
- immediate = 1;
- jump = 0;
- branch = 0;
- select_ALU_or_Mem = 0;
  write_reg = 1;
  data_write = 0;
+ immediate = 1;
+ select_ALU_or_Mem = 0;
+ branch = 0;
+ jump = 0;
  jal = 0;
  end
  else if(opcode == 6'b001011) begin //lui
- immediate = 1;
- jump = 0;
- branch = 0;
- select_ALU_or_Mem = 0;
  write_reg = 1;
  data_write = 0;
+ immediate = 1;
+ select_ALU_or_Mem = 0;
+ branch = 0;
+ jump = 0;
  jal = 0;
  end
  else if(opcode == 16 || opcode == 17 ||opcode == 18 || opcode == 19 || opcode == 20 || opcode == 21 || opcode == 22 || opcode == 23) begin //all branches
- immediate = 0;
- jump = 0;
- branch = 1;
- select_ALU_or_Mem = 0;
  write_reg = 0;
  data_write = 0;
+ immediate = 0;
+ select_ALU_or_Mem = 0;
+ branch = 1;
+ jump = 0;
  jal = 0;
  end
  else if(opcode == 6'b011000 || opcode == 6'b011001) begin // All jump except jal
- immediate = 0;
- jump = 1;
- branch = 0;
- select_ALU_or_Mem = 0;
  write_reg = 0;
  data_write = 0;
+ immediate = 0;
+ select_ALU_or_Mem = 0;
+ branch = 0;
+ jump = 1;
  jal = 0;
  end
  else if(opcode == 6'b011010) begin // jal handled seperately as it requires to store the value of PC + 4 into $ra
- immediate = 0;
- jump = 1;
- branch = 0;
- select_ALU_or_Mem = 0;
  write_reg = 1;
  data_write = 0;
+ immediate = 0;
+ select_ALU_or_Mem = 0;
+ branch = 0;
+ jump = 1;
  jal = 1;
  end
  else begin
- write_reg = write_reg;
+ write_reg = 0;
+ data_write = 0;
+ immediate = 0;
+ select_ALU_or_Mem = 0;
+ branch = 0;
+ jump = 0;
+ jal = 0;
  end
  end
 endmodule
@@ -363,7 +369,8 @@ module CPU (
 
 // mux2_1 #(.size(10)) ALU_Mem_write_address (ALU_out[9:0] , address , write_data , memory_in);
  assign memory_in = (write_data)? address : ALU_out[9:0];
- mux2_1 What_to_write_decider(rt_out , inst_data , write_data , memory_write);
+//  mux2_1 What_to_write_decider(rt_out , inst_data , write_data , memory_write);
+ assign memory_write = (write_data)? inst_data : rt_out;
  DistributedMemory data_mem(.a(memory_in) , .d(memory_write) , .dpra(ALU_out[9:0]) , .clk(clk) , .we(mem_write | write_data) , .dpo(memory_out));
 
  Splitter split(.instruction(instruction) , .rt(rt) , .rs(rs) , .rd(rd) , .shamt(shamt), .func(func), .opcode(opcode) , .address_constant(address_constant) , .jaddress(jaddress));
