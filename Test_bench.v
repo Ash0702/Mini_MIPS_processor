@@ -1,5 +1,7 @@
 // Code your testbench here
 // or browse Examples
+// Code your testbench here
+// or browse Examples
 `timescale 1ns / 1ps
 
 module CPU_tb;
@@ -63,16 +65,23 @@ module CPU_tb;
       	inst_data = 32'b000001_01111_00000_0000_0000_0000_1111;//addi$15,$0,15
 		#20
       	address = 8;
-      inst_data = 32'b001000_11111_00111_0000_0000_0000_0101; //sw $7 , 5($31) basically M[15] = 10
+      inst_data = 32'b001000_11111_00111_0000_0000_0000_0101; //sw $7,5($31) basically M[15] = 10
+      	#20
+      	address = 9;
+      inst_data = 32'b000111_00110_00000_0000_0000_0000_1111;//lw$6,15($0)
+      	#20
+      	address = 10;
+      inst_data = 32'b000111_01010_00000_0000_0000_0000_0000;//lw$10,0($0);
         #50;
         rst = 0;
         write_instruction = 0;
         #100
         // Check output
         $display("Register $32 value = %d", uut.RAM.Registers[31]);
-        $display("Register $7 value = %d", uut.RAM.Registers[7]); // Should be 30
+        $display("Register $7 value = %d", uut.RAM.Registers[7]); 
         $display("Register $6 value = %d", uut.RAM.Registers[6]);
         $display("Register $8 value = %d", uut.RAM.Registers[8]);
+      $display("Register $10 value = %d", uut.RAM.Registers[10]);
         $display("Memeroy[0]" , uut.data_mem.Address_locations[0]);
       	$display("Memeroy[15]" , uut.data_mem.Address_locations[15]);
         $finish;
