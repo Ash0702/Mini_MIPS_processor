@@ -20,13 +20,13 @@ endmodule
 //Reads at positive edge and writes at negative edge
 module RegisterFile (
  input wire [4:0] rd , input wire [4:0] rs , input wire [4:0] rt , input clk , input we , input wire [31:0] write_data,
- output [31:0] rs_out , output [31:0] rt_out, input wire rst
+ output reg [31:0] rs_out , output reg [31:0] rt_out, input wire rst
 );
  reg [31:0] Registers [31:0];
  integer i;
  assign rs_out = Registers[rs];
  assign rt_out = Registers[rt];
- always @(posedge clk or negedge clk ) begin
+ always @(negedge clk ) begin
  if(rst) begin
  for (i = 0; i < 32; i = i + 1) begin
  Registers[i] = 0;
@@ -75,9 +75,11 @@ ALUctrl = 0 => ADD
 13 == set greater than equal
 */
 module ALU (
- input wire [31:0] inp1, input wire [31:0] inp2 , input wire [3:0] ALUctrl , input wire clk ,
+ input wire [31:0] inp1, input wire [31:0] inp2 , input wire [4:0] ALUctrl , input wire clk ,
  output reg [31:0] ALUout , input wire [4:0] shamt
 );
+ wire[63:0] product;
+ assign product = $signed(inp1) * $signed(inp2);
  always @(inp1 or inp2 or ALUctrl or shamt ) begin
  case (ALUctrl)
  0: ALUout = inp1 + inp2;
@@ -95,6 +97,8 @@ module ALU (
  12: ALUout = ($signed(inp1) > $signed(inp2));
  13: ALUout = ($signed(inp1) >= $signed(inp2));
  14: ALUout = inp2 << 16;
+ 15: ALUout = product[31:0];
+ 16: ALUout = product[63:32];
  default: ALUout = 32'hdeadbeef;
  endcase
  end
@@ -138,7 +142,7 @@ ALUctrl = 0 => ADD
 13 == set greater than equal
 */
 module ALU_controller (
- input wire [5:0] opcode , input wire[5:0] func , output reg [3:0] ALUctrl
+ input wire [5:0] opcode , input wire[5:0] func , output reg [4:0] ALUctrl
 );
  always @(opcode or func) begin
  if(opcode == 6'b000111 || opcode == 6'b001000) begin // lw or sw
@@ -194,11 +198,13 @@ module ALU_controller (
  8: ALUctrl = 10;
  9: ALUctrl = 6;
  10: ALUctrl = 7;
- default: ALUctrl = 15;
+ 11: ALUctrl = 16;
+ 12: ALUctrl = 15;
+ default: ALUctrl = 31;
  endcase
  end
  else begin
- ALUctrl = 4'b1111;
+ ALUctrl = 5'b11111;
  end
  end
  end
@@ -349,7 +355,7 @@ module CPU (
  wire branch , jump , jal , mem_write , immediate, select_ALU_or_Mem, write_reg;
  wire [4:0] wire_going_into_rs;
  //mem_write instead of data_write
- wire [3:0] ALUctrl;
+ wire [4:0] ALUctrl;
  assign OutputOfRs = rs_out;
  assign wire_going_into_rs = (branch | mem_write)? rd : rs;
  //this thing is to handle jal
