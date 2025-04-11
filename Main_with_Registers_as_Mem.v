@@ -7,7 +7,7 @@ module DistributedMemory (
 );
  reg [31:0] Address_locations [1023:0];
  assign dpo = Address_locations[dpra];
- always @(negedge clk) begin
+  always @(negedge clk) begin
  if(we) begin
  Address_locations[a] = d;
  end
@@ -24,8 +24,10 @@ module RegisterFile (
 );
  reg [31:0] Registers [31:0];
  integer i;
- assign rs_out = Registers[rs];
- assign rt_out = Registers[rt];
+  
+  assign rs_out = Registers[rs];
+  assign rt_out = Registers[rt];
+  
  always @(negedge clk ) begin
  if(rst) begin
  for (i = 0; i < 32; i = i + 1) begin
