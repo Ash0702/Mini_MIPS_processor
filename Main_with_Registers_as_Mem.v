@@ -106,6 +106,108 @@ module ALU (
  end
 endmodule
 
+
+
+module floating_adder (
+    input wire [31:0] inp1 , input [31:0] inp2 , output reg[31:0] out
+);
+    reg signa , signb;
+    reg [7:0] exponenta, exponentb ;
+    reg [7:0] diff;
+    reg [22:0] ruffa , ruffb;
+  reg[24:0] ans;
+  reg[23:0] manta, mantb ;
+    
+    always @(inp1 or inp2) begin
+        signa = inp1[31]; signb = inp2[31];
+        exponenta = inp1[31:23]; exponentb = inp2[31:23];
+        manta = {1'b1, inp1[22:0]}; mantb = {1'b1, inp2[22:0]};
+        if(signa == signb) begin
+            if(exponenta > exponentb) begin
+                diff = exponenta - exponentb;
+                ruffb = mantb >> diff;
+                ans = ruffb + manta;
+              if(ans[24] == 1) begin
+                    ans = ans >> 1;
+                    exponenta = exponenta + 1;
+                end
+                else begin
+                    ans = ans;
+                end
+                out = {signa , exponenta , ans[22:0]};
+            end
+            else begin
+                diff = exponentb - exponenta;
+                ruffa = manta >> diff;
+                ans = ruffa + mantb;
+              if(ans[24] == 1) begin
+                    ans = ans >> 1;
+                    exponentb = exponentb + 1;
+                end
+                else begin
+                    ans = ans;
+                end
+                out = {signb, exponentb , ans[22:0]};
+            end
+        end
+        else begin
+            if(inp1 > inp2) begin
+                diff = exponenta - exponentb;
+                ruffb = mantb >> diff;
+                ans = manta - ruffb;
+              while(ans[23] == 0) begin
+                    ans = ans << 1;
+                    exponenta = exponenta - 1;
+                end
+                out = {signa , exponenta , ans[22:0]};
+            end
+            else begin
+                diff = exponentb - exponenta;
+                ruffa = manta >> diff;
+                ans = mantb - ruffa;
+              while (ans[23] == 0) begin
+                    ans = ans << 1;
+                    exponentb = exponentb - 1;
+                end
+                out = {signb, exponentb , ans[22:0]};
+            end
+        end
+    end
+endmodule
+
+module bit_inverser (
+    input invert , wire [31:0] inp , wire [31:0] out
+);
+    assign out = (invert)? inp ^ 32'h80000000 : inp;
+endmodule
+
+//Put rt into inp1
+module FPU (
+    input wire [31:0] inp1 , input wire [31:0] inp2 , output reg [31:0] FPUout,
+    input wire [5:0] opcode
+);
+    wire [31:0] Adder_cout;
+    reg cc;
+    wire invert;
+    assign invert = (opcode == 6'b100011);
+    wire [31:0] inp2_intoALU;
+    bit_inverser bt(.invert(invert) , .inp(inp2) , .out(inp2_intoALU));
+    floating_adder fa(.inp1(inp1) , .inp2(inp2_intoALU) , .out(Adder_cout));
+    always @(inp1 or inp2 or opcode) begin
+        case (opcode)
+            6'b100010: FPUout = Adder_cout;//add.s
+            6'b100011: FPUout = Adder_cout;//sub.s
+            6'b100100: cc = (inp1 == inp2);//c.eq.ss
+            6'b100101: cc = (inp1 <= inp2);//c.le.ss
+            6'b100110: cc = (inp1 < inp2);//c.lt.ss
+            6'b100111: cc = (inp1 >= inp2);//c.ge.ss
+            6'b101000: cc = (inp1 > inp2);//c.gt.ss
+            6'b101001: FPUout = inp1;//mov.s.cc
+            default: 
+        endcase
+    end
+endmodule
+
 module PC_Controller (
  input clk , output reg [9:0] PC, input rst , input jump , input [25:0] jaddress , input branch , input [15:0] branchval
 );
@@ -225,6 +327,9 @@ module mux2_1 #(
 );
  assign out = (select)? inp0 : inp1;
 endmodule
+
+
+
 module Controller (
  input clk , input wire [5:0] opcode , output reg write_reg , output reg data_write ,
  output reg immediate , output reg jump, output reg branch , output reg jal , output reg select_ALU_or_Mem,//0 for ALU, 1 for MEM
@@ -334,6 +439,13 @@ module Controller (
 endmodule
 
 
+
+module FPR_controller (
+    input [5:0] opcode, output write_fpr
+);
+    assign write_fpr = (opcode == 6'b100001 || opcode == 6'b100010 || opcode == 6'b100011 || opcode == 6'b101001)//mtc1, add.s, sub.s , mov.s.cc
+endmodule
+
 module CPU (
  input rst , input clk , input wire [31:0] inst_data ,
  input wire [9:0] address , input wire write_instruction , input wire write_data,
@@ -349,12 +461,12 @@ module CPU (
  wire [31:0] instruction;
  wire [31:0] ALU_out;
  wire [9:0] memory_in;
- wire [31:0] rt_out , rs_out , memory_write , memory_out , rt_or_address_to_ALU, extended_address;
+ wire [31:0] rt_out , rs_out , memory_write , memory_out , rt_or_address_to_ALU, extended_address , rtout_f, rsout_f , FPU_out;
  wire [4:0] rt , rs , rd , shamt;
  wire [5:0] opcode , func;
  wire [15:0] address_constant;
  wire [25:0] jaddress;
- wire branch , jump , jal , mem_write , immediate, select_ALU_or_Mem, write_reg;
+ wire branch , jump , jal , mem_write , immediate, select_ALU_or_Mem, write_reg, write_f_register;
  wire [4:0] wire_going_into_rs;
  //mem_write instead of data_write
  wire [4:0] ALUctrl;
@@ -391,4 +503,13 @@ module CPU (
  ALU brawn(.inp1(rs_out) , .inp2(rt_or_address_to_ALU) , .ALUctrl(ALUctrl) , .clk(clk) , .ALUout(ALU_out) , .shamt(shamt));
  PC_Controller legs(.clk(clk) , .PC(PC) , .rst(rst) , .jump(jump) , .jaddress(jaddress) , .branch(branch & ALU_out[0]) , .branchval(address_constant));
 
+
+    //FP registers
+
+    RegisterFile Fpr(.rd(rd) , .rs(rs) , .rt(rt) , .clk(clk) , .we(write_f_register) , .write_data(FPU_out)
+    .rs_out(rsout_f) , rt_out(rtout_f) , .rst(rst));
+
+    FPR_controller fpr_ctrlr(.opcode(opcode) , .write_fpr(write_f_register));
+
+    FPU floating_point_ALU(.inp1(rt_out) , .inp2(rs_out) , .FPUout(FPU_out) , .opcode(opcode));
 endmodule

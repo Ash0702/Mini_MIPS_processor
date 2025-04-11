@@ -66,6 +66,9 @@ module CPU_tb;
       address = 8;
       inst_data = 32'b000111_00010_00000_0000_0000_0000_0110;//lw$2,6($0)
       #20
+      address = 9;
+      inst_data = 32'b000000_00011_00001_00010_00000_001100;//mflo$3,$1,$2;
+      #20
       write_instruction = 0;
       write_data = 1;
       #20
@@ -79,6 +82,7 @@ module CPU_tb;
         // Check output
       $display("Reg[1] = %d" , uut.RAM.Registers[1]);
       $display("Reg[2] = %d" , uut.RAM.Registers[2]);
+      $display("Reg[3] = %d" , uut.RAM.Registers[3]);
       $display("Memory[10] = %d", uut.data_mem.Address_locations[10]);
         $finish;
     end
