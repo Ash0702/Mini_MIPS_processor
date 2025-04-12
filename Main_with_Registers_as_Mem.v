@@ -25,8 +25,14 @@ module RegisterFile (
  reg [31:0] Registers [31:0];
  integer i;
   
-  assign rs_out = Registers[rs];
-  assign rt_out = Registers[rt];
+//   assign rs_out = Registers[rs];
+//   assign rt_out = Registers[rt];
+
+//I feel better in case of doing something like add $1, $1, $1; 
+  always @(rs or rt) begin
+    rt_out = Registers[rt];
+    rs_out = Registers[rs];
+  end
   
  always @(negedge clk ) begin
  if(rst) begin
@@ -176,7 +182,7 @@ module floating_adder (
 endmodule
 
 module bit_inverser (
-    input invert , wire [31:0] inp , wire [31:0] out
+    input invert , input [31:0] inp , output [31:0] out
 );
     assign out = (invert)? inp ^ 32'h80000000 : inp;
 endmodule
@@ -203,7 +209,7 @@ module FPU (
             6'b100111: cc = (inp1 >= inp2);//c.ge.ss
             6'b101000: cc = (inp1 > inp2);//c.gt.ss
             6'b101001: FPUout = inp1;//mov.s.cc
-            default: 
+            default: FPUout = FPUout;
         endcase
     end
 endmodule
@@ -443,7 +449,7 @@ endmodule
 module FPR_controller (
     input [5:0] opcode, output write_fpr
 );
-    assign write_fpr = (opcode == 6'b100001 || opcode == 6'b100010 || opcode == 6'b100011 || opcode == 6'b101001)//mtc1, add.s, sub.s , mov.s.cc
+    assign write_fpr = (opcode == 6'b100001 || opcode == 6'b100010 || opcode == 6'b100011 || opcode == 6'b101001);//mtc1, add.s, sub.s , mov.s.cc
 endmodule
 
 module CPU (
@@ -506,10 +512,10 @@ module CPU (
 
     //FP registers
 
-    RegisterFile Fpr(.rd(rd) , .rs(rs) , .rt(rt) , .clk(clk) , .we(write_f_register) , .write_data(FPU_out)
-    .rs_out(rsout_f) , rt_out(rtout_f) , .rst(rst));
+    RegisterFile Fpr(.rd(rd) , .rs(rs) , .rt(rt) , .clk(clk) , .we(write_f_register) , .write_data(FPU_out) , .rs_out(rsout_f) , .rt_out(rtout_f) , .rst(rst));
 
     FPR_controller fpr_ctrlr(.opcode(opcode) , .write_fpr(write_f_register));
 
     FPU floating_point_ALU(.inp1(rt_out) , .inp2(rs_out) , .FPUout(FPU_out) , .opcode(opcode));
+
 endmodule
