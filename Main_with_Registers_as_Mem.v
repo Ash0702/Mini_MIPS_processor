@@ -7,7 +7,7 @@ module DistributedMemory (
 );
  reg [31:0] Address_locations [1023:0];
  assign dpo = Address_locations[dpra];
-  always @(negedge clk) begin
+  always @(*) begin
  if(we) begin
  Address_locations[a] = d;
  end
@@ -51,6 +51,10 @@ module RegisterFile (
  end
 
 endmodule
+
+
+
+
 module Splitter (
  input wire [31:0] instruction, output wire [4:0] rt , output wire [4:0] rs , output wire [4:0] rd ,
  output wire [5:0] func , output wire [4:0] shamt , output wire [5:0] opcode , output wire [15:0] address_constant,
@@ -113,6 +117,75 @@ module ALU (
 endmodule
 
 
+module Floating_point_to_Binary (
+    input [31:0] floating_input , output reg [31:0] bin_output
+);
+    reg sign;
+    reg [32:0] mantissa;
+    reg [7 : 0] exponent;
+    reg [7:0] diff;
+    integer i;
+    always @(floating_input) begin
+        {sign, exponent, mantissa[31:9]} = floating_input;
+        mantissa[32] = 1;
+        mantissa[8:0] = 0;
+        bin_output = 0;
+        diff = exponent - 127;
+        if (diff > 30) begin
+            bin_output = 0;
+        end
+        else if(diff < 0) begin
+            bin_output = 0;
+        end
+        else begin
+            for(i = diff ; i > -1 ; i = i - 1) begin
+                bin_output[i] = mantissa[32 + (i - (diff))];
+            end
+        end
+    end
+
+    
+endmodule
+
+
+module Binary_to_FloatingPoint (
+    input [31:0] bin_input , output reg[31:0] floating_output
+);
+    reg[22:0] mantissa;
+    reg sign;
+    reg [7:0] exponent;
+  reg[4:0] i;
+    genvar j;
+    always @(bin_input) begin
+        sign = 0;
+        exponent = 31;
+        if (bin_input == 0) begin
+            floating_output = 32'h00000000;
+        end
+        else begin
+          for (i = 31; bin_input[i] == 0; i = i - 1) begin
+            exponent = i;
+          end;
+
+            exponent = exponent - 1;
+
+            mantissa = 0;
+            if (i >= 23) begin
+                for (integer j = 0; j < 23; j = j + 1) begin
+                    mantissa[22 - j] = bin_input[i - 1 - j];
+                end
+            end 
+            else begin
+                for(integer j = exponent - 1 ; j >= 0 ; j = j - 1) begin
+                    mantissa[22 + (j - (exponent - 1))] = bin_input[j];
+                end
+            end
+            exponent = exponent + 127;
+            floating_output = {sign , exponent, mantissa};
+        
+        end
+    end
+endmodule
 
 module floating_adder (
     input wire [31:0] inp1 , input [31:0] inp2 , output reg[31:0] out
@@ -120,14 +193,18 @@ module floating_adder (
     reg signa , signb;
     reg [7:0] exponenta, exponentb ;
     reg [7:0] diff;
-    reg [22:0] ruffa , ruffb;
+  reg [24:0] ruffa , ruffb;
   reg[24:0] ans;
-  reg[23:0] manta, mantb ;
+  reg[24:0] manta, mantb ;
     
     always @(inp1 or inp2) begin
+      ruffa = 0;
+      ruffb = 0;
+      
         signa = inp1[31]; signb = inp2[31];
         exponenta = inp1[31:23]; exponentb = inp2[31:23];
-        manta = {1'b1, inp1[22:0]}; mantb = {1'b1, inp2[22:0]};
+      manta[23:0] = {1'b1, inp1[22:0]}; mantb[23:0] = {1'b1, inp2[22:0]};
+      manta[24] = 0; mantb[24] = 0;
         if(signa == signb) begin
             if(exponenta > exponentb) begin
                 diff = exponenta - exponentb;
@@ -199,7 +276,7 @@ module FPU (
     wire [31:0] inp2_intoALU;
     bit_inverser bt(.invert(invert) , .inp(inp2) , .out(inp2_intoALU));
     floating_adder fa(.inp1(inp1) , .inp2(inp2_intoALU) , .out(Adder_cout));
-    always @(inp1 or inp2 or opcode) begin
+    always @(inp1 or inp2 or opcode or Adder_cout) begin
         case (opcode)
             6'b100010: FPUout = Adder_cout;//add.s
             6'b100011: FPUout = Adder_cout;//sub.s
@@ -339,7 +416,7 @@ endmodule
 module Controller (
  input clk , input wire [5:0] opcode , output reg write_reg , output reg data_write ,
  output reg immediate , output reg jump, output reg branch , output reg jal , output reg select_ALU_or_Mem,//0 for ALU, 1 for MEM
- input rst
+ input rst , output reg mfc1
 );
  always @(opcode or rst) begin
  if(rst) begin
@@ -350,6 +427,7 @@ module Controller (
  data_write = 0;
  write_reg = 0;
  jal = 0;
+ mfc1 = 0;
  end
  else if(opcode == 0) begin // Rtype instruction
  data_write = 0;
@@ -359,6 +437,7 @@ module Controller (
  branch = 0;
  jump = 0;
  jal = 0;
+ mfc1 = 0;
  end
  else if(opcode == 1 ||opcode == 2 ||opcode == 3 ||opcode == 4 ||opcode == 5) begin //addi, andi , xori, ori , addiu
  data_write = 0;
@@ -368,6 +447,7 @@ module Controller (
  branch = 0;
  jump = 0;
  jal = 0;
+ mfc1 = 0;
  end
  else if(opcode == 7) begin // lw
  write_reg = 1;
@@ -377,6 +457,7 @@ module Controller (
  branch = 0;
  jump = 0;
  jal = 0;
+ mfc1 = 0;
  end
  else if(opcode == 8) begin // sw
  write_reg = 0;
@@ -386,6 +467,7 @@ module Controller (
  branch = 0;
  jump = 0;
  jal = 0;
+ mfc1 = 0;
  end
  else if(opcode == 9 || opcode == 10) begin // slti , seq
  write_reg = 1;
@@ -395,6 +477,7 @@ module Controller (
  branch = 0;
  jump = 0;
  jal = 0;
+ mfc1 = 0;
  end
  else if(opcode == 6'b001011) begin //lui
  write_reg = 1;
@@ -404,6 +487,7 @@ module Controller (
  branch = 0;
  jump = 0;
  jal = 0;
+ mfc1 = 0;
  end
  else if(opcode == 16 || opcode == 17 ||opcode == 18 || opcode == 19 || opcode == 20 || opcode == 21 || opcode == 22 || opcode == 23) begin //all branches
  write_reg = 0;
@@ -413,6 +497,7 @@ module Controller (
  branch = 1;
  jump = 0;
  jal = 0;
+ mfc1 = 0;
  end
  else if(opcode == 6'b011000 || opcode == 6'b011001) begin // All jump except jal
  write_reg = 0;
@@ -422,6 +507,7 @@ module Controller (
  branch = 0;
  jump = 1;
  jal = 0;
+ mfc1 = 0;
  end
  else if(opcode == 6'b011010) begin // jal handled seperately as it requires to store the value of PC + 4 into $ra
  write_reg = 1;
@@ -431,6 +517,17 @@ module Controller (
  branch = 0;
  jump = 1;
  jal = 1;
+ mfc1 = 0;
+ end
+ else if(opcode == 6'b100000) begin//mfc1
+ write_reg = 1;
+ data_write = 0;
+ immediate = 0;
+ select_ALU_or_Mem = 0;
+ branch = 0;
+ jump = 0;
+ jal = 0;
+ mfc1 = 1;
  end
  else begin
  write_reg = 0;
@@ -440,6 +537,7 @@ module Controller (
  branch = 0;
  jump = 0;
  jal = 0;
+ mfc1 = 0;
  end
  end
 endmodule
@@ -447,9 +545,10 @@ endmodule
 
 
 module FPR_controller (
-    input [5:0] opcode, output write_fpr
+    input [5:0] opcode, output write_fpr , output mtc1
 );
     assign write_fpr = (opcode == 6'b100001 || opcode == 6'b100010 || opcode == 6'b100011 || opcode == 6'b101001);//mtc1, add.s, sub.s , mov.s.cc
+    assign mtc1 = (opcode == 6'b100001);
 endmodule
 
 module CPU (
@@ -467,12 +566,12 @@ module CPU (
  wire [31:0] instruction;
  wire [31:0] ALU_out;
  wire [9:0] memory_in;
- wire [31:0] rt_out , rs_out , memory_write , memory_out , rt_or_address_to_ALU, extended_address , rtout_f, rsout_f , FPU_out;
+ wire [31:0] rt_out , rs_out , memory_write , memory_out , rt_or_address_to_ALU, extended_address , rtout_f, rsout_f , FPU_out , converted_bin , converted_float , final_wire_going_into_register_rd , data_write_in_fpr;
  wire [4:0] rt , rs , rd , shamt;
  wire [5:0] opcode , func;
  wire [15:0] address_constant;
  wire [25:0] jaddress;
- wire branch , jump , jal , mem_write , immediate, select_ALU_or_Mem, write_reg, write_f_register;
+ wire branch , jump , jal , mem_write , immediate, select_ALU_or_Mem, write_reg, write_f_register , mtc1 , mfc1;
  wire [4:0] wire_going_into_rs;
  //mem_write instead of data_write
  wire [4:0] ALUctrl;
@@ -483,10 +582,13 @@ module CPU (
  assign write_in_Register = (jal)? 5'd3 : rd;
  wire [31:0] write_data_in_register , wire_going_into_register_rd;
  assign wire_going_into_register_rd = (jal)? {22'b0 , PC} : write_data_in_register;
+ assign final_wire_going_into_register_rd = (mfc1)? converted_bin : wire_going_into_register_rd; // essentially for mfc1
  //write_data_in_register is coming from the last mux(selecting ALU or memory Output)
  //wire_going_into_register_rd is write data that is actually going into register file
  //write_in_register goes into rd
  // mux2_1 rt_ALU (rt_out , extended_address , immediate , rt_or_address_to_ALU);
+
+
  assign rt_or_address_to_ALU = (immediate)? extended_address : rt_out;
  SignExtender sign_extend_addr_const(.inp(address_constant) , .out(extended_address));
  // mux2_1 Last_mem_stage(ALU_out , memory_out , select_ALU_or_Mem , write_data_in_register);
@@ -502,8 +604,8 @@ module CPU (
  Splitter split(.instruction(instruction) , .rt(rt) , .rs(rs) , .rd(rd) , .shamt(shamt), .func(func), .opcode(opcode) , .address_constant(address_constant) , .jaddress(jaddress));
  Controller brain(.clk(clk) , .opcode(opcode) , .write_reg(write_reg) , .data_write(mem_write) ,
  .immediate(immediate) , .jump(jump) , .branch(branch) , .jal(jal) , .select_ALU_or_Mem(select_ALU_or_Mem) ,
- .rst(rst));
- RegisterFile RAM(.rd(write_in_Register) , .rs(wire_going_into_rs) , .rt(rt) , .clk(clk) , .we(write_reg) , .write_data(wire_going_into_register_rd) , .rst(rst) , .rt_out(rt_out) , .rs_out(rs_out));
+ .rst(rst) , .mfc1(mfc1));
+ RegisterFile RAM(.rd(write_in_Register) , .rs(wire_going_into_rs) , .rt(rt) , .clk(clk) , .we(write_reg) , .write_data(final_wire_going_into_register_rd) , .rst(rst) , .rt_out(rt_out) , .rs_out(rs_out));
 
  ALU_controller nerves(.opcode(opcode) , .func(func) , .ALUctrl(ALUctrl));
  ALU brawn(.inp1(rs_out) , .inp2(rt_or_address_to_ALU) , .ALUctrl(ALUctrl) , .clk(clk) , .ALUout(ALU_out) , .shamt(shamt));
@@ -511,11 +613,15 @@ module CPU (
 
 
     //FP registers
+    assign data_write_in_fpr = (mtc1)? converted_float: FPU_out;
+    Floating_point_to_Binary fptb(.floating_input(rtout_f) , .bin_output(converted_bin));
+    Binary_to_FloatingPoint btfp(.bin_input(rt_out) , .floating_output(converted_float));
 
-    RegisterFile Fpr(.rd(rd) , .rs(rs) , .rt(rt) , .clk(clk) , .we(write_f_register) , .write_data(FPU_out) , .rs_out(rsout_f) , .rt_out(rtout_f) , .rst(rst));
 
-    FPR_controller fpr_ctrlr(.opcode(opcode) , .write_fpr(write_f_register));
+    RegisterFile Fpr(.rd(rd) , .rs(rs) , .rt(rt) , .clk(clk) , .we(write_f_register) , .write_data(data_write_in_fpr) , .rs_out(rsout_f) , .rt_out(rtout_f) , .rst(rst));
 
-    FPU floating_point_ALU(.inp1(rt_out) , .inp2(rs_out) , .FPUout(FPU_out) , .opcode(opcode));
+    FPR_controller fpr_ctrlr(.opcode(opcode) , .write_fpr(write_f_register) , .mtc1(mtc1));
+
+    FPU floating_point_ALU(.inp1(rsout_f) , .inp2(rtout_f) , .FPUout(FPU_out) , .opcode(opcode));
 
 endmodule
