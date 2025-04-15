@@ -99,7 +99,7 @@ module CPU_tb;
       	#20
         rst = 0;
         write_instruction = 0;
-        #600
+        #1000
         // Check output
         $display("Register $31 value = %d", uut.RAM.Registers[31]);
         $display("Register $7 value = %d", uut.RAM.Registers[7]); 
