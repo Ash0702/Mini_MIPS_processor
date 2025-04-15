@@ -1,4 +1,5 @@
 // Code your design here
+// Code your design here
 `timescale 1ns / 1ps
 
 module DistributedMemory (
@@ -136,15 +137,14 @@ module floating_adder (
     reg signa , signb;
     reg [7:0] exponenta, exponentb ;
     reg [7:0] diff;
-    reg [22:0] ruffa , ruffb;
+  reg [24:0] ruffa , ruffb;
   reg[24:0] ans;
-  reg[23:0] manta, mantb ;
-    reg into;
+  reg[24:0] manta, mantb ;
     always @(inp1 or inp2) begin
-      into = 0;
+      
         signa = inp1[31]; signb = inp2[31];
         exponenta = inp1[31:23]; exponentb = inp2[31:23];
-        manta = {1'b1, inp1[22:0]}; mantb = {1'b1, inp2[22:0]};
+      manta = {2'b1, inp1[22:0]}; mantb = {2'b1, inp2[22:0]};
         if(signa == signb) begin
             if(exponenta > exponentb) begin
                 diff = exponenta - exponentb;

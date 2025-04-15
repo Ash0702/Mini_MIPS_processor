@@ -8,9 +8,9 @@ module floating_adder (
     reg signa , signb;
     reg [7:0] exponenta, exponentb ;
     reg [7:0] diff;
-    reg [22:0] ruffa , ruffb;
+    reg [24:0] ruffa , ruffb;
   reg[24:0] ans;
-  reg[23:0] manta, mantb ;
+  reg[24:0] manta, mantb ;
     reg into;
     always @(inp1 or inp2) begin
       into = 0;
