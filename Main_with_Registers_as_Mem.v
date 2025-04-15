@@ -118,73 +118,16 @@ endmodule
 
 
 module Floating_point_to_Binary (
-    input [31:0] floating_input , output reg [31:0] bin_output
+    input [31:0] floating_input , output [31:0] bin_output
 );
-    reg sign;
-    reg [32:0] mantissa;
-    reg [7 : 0] exponent;
-    reg [7:0] diff;
-    integer i;
-    always @(floating_input) begin
-        {sign, exponent, mantissa[31:9]} = floating_input;
-        mantissa[32] = 1;
-        mantissa[8:0] = 0;
-        bin_output = 0;
-        diff = exponent - 127;
-        if (diff > 30) begin
-            bin_output = 0;
-        end
-        else if(diff < 0) begin
-            bin_output = 0;
-        end
-        else begin
-            for(i = diff ; i > -1 ; i = i - 1) begin
-                bin_output[i] = mantissa[32 + (i - (diff))];
-            end
-        end
-    end
-
-    
+    assign bin_output = floating_input;    
 endmodule
 
 
 module Binary_to_FloatingPoint (
-    input [31:0] bin_input , output reg[31:0] floating_output
+    input [31:0] bin_input , output [31:0] floating_output
 );
-    reg[22:0] mantissa;
-    reg sign;
-    reg [7:0] exponent;
-  reg[4:0] i;
-    genvar j;
-    always @(bin_input) begin
-        sign = 0;
-        exponent = 31;
-        if (bin_input == 0) begin
-            floating_output = 32'h00000000;
-        end
-        else begin
-          for (i = 31; bin_input[i] == 0; i = i - 1) begin
-            exponent = i;
-          end;
-
-            exponent = exponent - 1;
-
-            mantissa = 0;
-            if (i >= 23) begin
-                for (integer j = 0; j < 23; j = j + 1) begin
-                    mantissa[22 - j] = bin_input[i - 1 - j];
-                end
-            end 
-            else begin
-                for(integer j = exponent - 1 ; j >= 0 ; j = j - 1) begin
-                    mantissa[22 + (j - (exponent - 1))] = bin_input[j];
-                end
-            end
-            exponent = exponent + 127;
-            floating_output = {sign , exponent, mantissa};
-        
-        end
-    end
+    assign floating_output = bin_input;
 endmodule
 
 module floating_adder (
@@ -492,8 +435,11 @@ module PC_Controller (
  else if(branch) begin
  PC = PC + 1 + branchval;
  end
- else begin
+ else if(PC <= 100) begin
  PC = PC + 1;
+ end
+ else begin
+  PC = PC;
  end
  end
  end
@@ -753,7 +699,7 @@ module CPU (
  wire [31:0] instruction;
  wire [31:0] ALU_out;
  wire [9:0] memory_in;
- wire [31:0] rt_out , rs_out , memory_write , memory_out , rt_or_address_to_ALU, extended_address , rtout_f, rsout_f , FPU_out , converted_bin , converted_float , final_wire_going_into_register_rd , data_write_in_fpr;
+ wire [31:0] rt_out , rs_out , memory_write , memory_out , rs_or_address_to_ALU, extended_address , rtout_f, rsout_f , FPU_out , converted_bin , converted_float , final_wire_going_into_register_rd , data_write_in_fpr;
  wire [4:0] rt , rs , rd , shamt;
  wire [5:0] opcode , func;
  wire [15:0] address_constant;
@@ -773,10 +719,10 @@ module CPU (
  //write_data_in_register is coming from the last mux(selecting ALU or memory Output)
  //wire_going_into_register_rd is write data that is actually going into register file
  //write_in_register goes into rd
- // mux2_1 rt_ALU (rt_out , extended_address , immediate , rt_or_address_to_ALU);
+ // mux2_1 rt_ALU (rt_out , extended_address , immediate , rs_or_address_to_ALU);
 
 
- assign rt_or_address_to_ALU = (immediate)? extended_address : rt_out;
+ assign rs_or_address_to_ALU = (immediate)? extended_address : rs_out;
  SignExtender sign_extend_addr_const(.inp(address_constant) , .out(extended_address));
  // mux2_1 Last_mem_stage(ALU_out , memory_out , select_ALU_or_Mem , write_data_in_register);
  assign write_data_in_register = (select_ALU_or_Mem)? memory_out : ALU_out;
@@ -785,7 +731,7 @@ module CPU (
 // mux2_1 #(.size(10)) ALU_Mem_write_address (ALU_out[9:0] , address , write_data , memory_in);
  assign memory_in = (write_data)? address : ALU_out[9:0];
 //  mux2_1 What_to_write_decider(rt_out , inst_data , write_data , memory_write);
- assign memory_write = (write_data)? inst_data : rt_out;
+ assign memory_write = (write_data)? inst_data : rs_out;
  DistributedMemory data_mem(.a(memory_in) , .d(memory_write) , .dpra(ALU_out[9:0]) , .clk(clk) , .we(mem_write | write_data) , .dpo(memory_out));
 
  Splitter split(.instruction(instruction) , .rt(rt) , .rs(rs) , .rd(rd) , .shamt(shamt), .func(func), .opcode(opcode) , .address_constant(address_constant) , .jaddress(jaddress));
@@ -795,7 +741,7 @@ module CPU (
  RegisterFile RAM(.rd(write_in_Register) , .rs(wire_going_into_rs) , .rt(rt) , .clk(clk) , .we(write_reg) , .write_data(final_wire_going_into_register_rd) , .rst(rst) , .rt_out(rt_out) , .rs_out(rs_out));
 
  ALU_controller nerves(.opcode(opcode) , .func(func) , .ALUctrl(ALUctrl));
- ALU brawn(.inp1(rs_out) , .inp2(rt_or_address_to_ALU) , .ALUctrl(ALUctrl) , .clk(clk) , .ALUout(ALU_out) , .shamt(shamt));
+ ALU brawn(.inp1(rt_out) , .inp2(rs_or_address_to_ALU) , .ALUctrl(ALUctrl) , .clk(clk) , .ALUout(ALU_out) , .shamt(shamt));
  PC_Controller legs(.clk(clk) , .PC(PC) , .rst(rst) , .jump(jump) , .jaddress(jaddress) , .branch(branch & ALU_out[0]) , .branchval(address_constant));
 
 
