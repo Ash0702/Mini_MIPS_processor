@@ -21,10 +21,17 @@ endmodule
 //Reads at positive edge and writes at negative edge
 module RegisterFile (
  input wire [4:0] rd , input wire [4:0] rs , input wire [4:0] rt , input clk , input we , input wire [31:0] write_data,
- output reg [31:0] rs_out , output reg [31:0] rt_out, input wire rst
+ output reg [31:0] rs_out , output reg [31:0] rt_out, input wire rst , output wire [31:0] Reg1 , output [31:0] Reg2 , 
+ output [31:0] Reg3 , output [31:0] Reg4 , output [31:0] Reg5 
 );
  reg [31:0] Registers [31:0];
  integer i;
+  
+  assign Reg1 = Registers[1];
+  assign Reg2 = Registers[2];
+  assign Reg3 = Registers[3];
+  assign Reg4 = Registers[4];
+  assign Reg5 = Registers[5];
   
 //   assign rs_out = Registers[rs];
 //   assign rt_out = Registers[rt];
@@ -687,7 +694,8 @@ endmodule
 module CPU (
  input rst , input clk , input wire [31:0] inst_data ,
  input wire [9:0] address , input wire write_instruction , input wire write_data,
- output wire [31:0] OutputOfRs
+ output wire [31:0] OutputOfR1 , output wire [31:0] OutputOfR2, output wire [31:0] OutputOfR3,
+ output wire [31:0] OutputOfR4, output wire [31:0] OutputOfR5 , output wire done
 );
 // .a(a), // input wire [8 : 0] a. This is the write Address
 // .d(d), // input wire [31 : 0] d. This is the data to be written
@@ -695,6 +703,7 @@ module CPU (
 // .clk(clk), // input wire clk
 // .we(we), // input wire we
 // .dpo(dpo) // output wire [31 : 0] dpo. the value that is read
+ 
  wire [9:0] PC;
  wire [31:0] instruction;
  wire [31:0] ALU_out;
@@ -708,8 +717,8 @@ module CPU (
  wire [4:0] wire_going_into_rs;
  //mem_write instead of data_write
  wire [4:0] ALUctrl;
- assign OutputOfRs = rs_out;
  assign wire_going_into_rs = (branch | mem_write)? rd : rs;
+ assign done = (PC >= 100);
  //this thing is to handle jal
  wire[4:0] write_in_Register;
  assign write_in_Register = (jal)? 5'd3 : rd;
@@ -726,19 +735,20 @@ module CPU (
  SignExtender sign_extend_addr_const(.inp(address_constant) , .out(extended_address));
  // mux2_1 Last_mem_stage(ALU_out , memory_out , select_ALU_or_Mem , write_data_in_register);
  assign write_data_in_register = (select_ALU_or_Mem)? memory_out : ALU_out;
- DistributedMemory instruction_mem(.a(address),.d(inst_data),.dpra(PC),.clk(clk),.we(write_instruction),.dpo(instruction));
+ dist_mem_gen_1 instruction_mem(.a(address),.d(inst_data),.dpra(PC),.clk(clk),.we(write_instruction),.dpo(instruction));
 
 // mux2_1 #(.size(10)) ALU_Mem_write_address (ALU_out[9:0] , address , write_data , memory_in);
  assign memory_in = (write_data)? address : ALU_out[9:0];
 //  mux2_1 What_to_write_decider(rt_out , inst_data , write_data , memory_write);
  assign memory_write = (write_data)? inst_data : rs_out;
- DistributedMemory data_mem(.a(memory_in) , .d(memory_write) , .dpra(ALU_out[9:0]) , .clk(clk) , .we(mem_write | write_data) , .dpo(memory_out));
+ dist_mem_gen_1 data_mem(.a(memory_in) , .d(memory_write) , .dpra(ALU_out[9:0]) , .clk(clk) , .we(mem_write | write_data) , .dpo(memory_out));
 
  Splitter split(.instruction(instruction) , .rt(rt) , .rs(rs) , .rd(rd) , .shamt(shamt), .func(func), .opcode(opcode) , .address_constant(address_constant) , .jaddress(jaddress));
  Controller brain(.clk(clk) , .opcode(opcode) , .write_reg(write_reg) , .data_write(mem_write) ,
  .immediate(immediate) , .jump(jump) , .branch(branch) , .jal(jal) , .select_ALU_or_Mem(select_ALU_or_Mem) ,
  .rst(rst) , .mfc1(mfc1));
- RegisterFile RAM(.rd(write_in_Register) , .rs(wire_going_into_rs) , .rt(rt) , .clk(clk) , .we(write_reg) , .write_data(final_wire_going_into_register_rd) , .rst(rst) , .rt_out(rt_out) , .rs_out(rs_out));
+ RegisterFile RAM(.rd(write_in_Register) , .rs(wire_going_into_rs) , .rt(rt) , .clk(clk) , .we(write_reg) , .write_data(final_wire_going_into_register_rd) , .rst(rst) , .rt_out(rt_out) , .rs_out(rs_out) ,
+                   .Reg1(OutputOfR1) , .Reg2(OutputOfR2) , .Reg3(OutputOfR3) , .Reg4(OutputOfR4) , .Reg5(OutputOfR5)    );
 
  ALU_controller nerves(.opcode(opcode) , .func(func) , .ALUctrl(ALUctrl));
  ALU brawn(.inp1(rt_out) , .inp2(rs_or_address_to_ALU) , .ALUctrl(ALUctrl) , .clk(clk) , .ALUout(ALU_out) , .shamt(shamt));
