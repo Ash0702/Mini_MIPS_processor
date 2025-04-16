@@ -718,7 +718,7 @@ module CPU (
  //mem_write instead of data_write
  wire [4:0] ALUctrl;
  assign wire_going_into_rs = (branch | mem_write)? rd : rs;
- assign done = (PC >= 100);
+ assign done = (PC >= 50);
  //this thing is to handle jal
  wire[4:0] write_in_Register;
  assign write_in_Register = (jal)? 5'd3 : rd;
