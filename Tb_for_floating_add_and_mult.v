@@ -6,7 +6,7 @@ module CPU_tb;
     reg [31:0] inst_data;
     reg [9:0] address;
     reg write_instruction, write_data;
-    wire [31:0] OutputOfRs;
+    wire [31:0] OutputOfR1 , OutputOfR2 , OutputOfR3 , OutputOfR4 , OutputOfR5;
     // Instantiate the CPU
     CPU uut (
         .rst(rst),
@@ -15,7 +15,11 @@ module CPU_tb;
         .address(address),
         .write_instruction(write_instruction),
         .write_data(write_data),
-        .OutputOfRs(OutputOfRs)
+        .OutputOfR1(OutputOfR1),
+        .OutputOfR2(OutputOfR2),
+        .OutputOfR3(OutputOfR3),
+        .OutputOfR4(OutputOfR4),
+        .OutputOfR5(OutputOfR5)
     );
     // Clock Generation
     always #5 clk = ~clk;
