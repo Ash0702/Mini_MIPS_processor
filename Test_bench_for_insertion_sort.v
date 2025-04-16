@@ -6,7 +6,7 @@ module CPU_tb;
     reg [31:0] inst_data;
     reg [9:0] address;
     reg write_instruction, write_data;
-    wire [31:0] OutputOfRs;
+    wire [31:0] OutputOfR1 , OutputOfR2 , OutputOfR3 , OutputOfR4 ,OutputOfR5;
     // Instantiate the CPU
     CPU uut (
         .rst(rst),
@@ -15,7 +15,11 @@ module CPU_tb;
         .address(address),
         .write_instruction(write_instruction),
         .write_data(write_data),
-        .OutputOfRs(OutputOfRs)
+        .OutputOfR1(OutputOfR1),
+        .OutputOfR2(OutputOfR2),
+        .OutputOfR3(OutputOfR3),
+        .OutputOfR4(OutputOfR4),
+        .OutputOfR5(OutputOfR5)
     );
     // Clock Generation
     always #5 clk = ~clk;
@@ -24,7 +28,7 @@ module CPU_tb;
 
   
         //$monitor($time , "Register $6 value = %d\n", uut.RAM.Registers[6]);
-      $monitor($time , "Reg[0] = %d and PC = %d : Reg[1] = %d , Reg[2] = %d, Reg[3] = %d" , uut.RAM.Registers[0] , uut.PC , uut.RAM.Registers[1], uut.RAM.Registers[2] , uut.RAM.Registers[3]);
+    //  $monitor($time , "Reg[0] = %d and PC = %d : Reg[1] = %d , Reg[2] = %d, Reg[3] = %d" , uut.RAM.Registers[0] , uut.PC , uut.RAM.Registers[1], uut.RAM.Registers[2] , uut.RAM.Registers[3]);
       //assign memory_write = (write_data)? inst_data : rt_out;
       //$monitor($time , "PC = %d , memory_write = %d , write_data = %b , inst_data = %d , rt_out = %d , rt = %d" , uut.PC , uut.memory_write , uut.write_data , uut.inst_data , uut.rt_out, uut.rt);
         clk = 0;
@@ -65,7 +69,7 @@ module CPU_tb;
         inst_data = 32'b000001_00001_00001_0000_0000_0000_0001;//addi $1, $1, 1
         #20
         address = 4;
-        inst_data = 32'b010000_00001_11111_0000_0001_0000_0000;//beq $31, $1, 512
+        inst_data = 32'b010000_00001_11111_0000_0000_0000_1010;//beq $31, $1, 10
         #20
         address = 5;
         inst_data = 32'b000001_00010_00001_1111_1111_1111_1111;//addi $2, $1, -1
@@ -97,6 +101,22 @@ module CPU_tb;
         address = 14;
         inst_data = 32'b010000_00000_00000_1111_1111_1111_0111;//beq $0 , $0, -9 (PC = 6)
       	#20
+      	address = 15;
+      	inst_data = 32'b000111_00001_00000_0000_0000_0000_0000;//lw$1,$0(0);
+      	#20
+      	address = 16;
+      	inst_data = 32'b000111_00010_00000_0000_0000_0000_0001;//lw$2,$0(1);
+      	#20
+      	address = 17;
+      	inst_data = 32'b000111_00011_00000_0000_0000_0000_0010;//lw$3,$0(2);
+      	#20
+      	address = 18;
+      	inst_data = 32'b000111_00100_00000_0000_0000_0000_0011;//lw$4,$0(3);
+      	#20
+      	address = 19;
+      	inst_data = 32'b000111_00101_00000_0000_0000_0000_0100;//lw$5,$0(4);
+      	#20
+      	
         rst = 0;
         write_instruction = 0;
         #1000
@@ -109,11 +129,11 @@ module CPU_tb;
       $display("Register $10 value = %d", uut.RAM.Registers[10]);
       $display("Register $3 value = %d", uut.RAM.Registers[3]);
       $display("Register $1 value = %d", uut.RAM.Registers[1]);
-     $display("Memeroy[0] = %d" , uut.data_mem.Address_locations[0]);
-      $display("Memeroy[1] = %d" , uut.data_mem.Address_locations[1]);
-      $display("Memeroy[2] = %d" , uut.data_mem.Address_locations[2]);
-      $display("Memeroy[3] = %d" , uut.data_mem.Address_locations[3]);
-      $display("Memeroy[4] = %d" , uut.data_mem.Address_locations[4]);
+     $display("Memeroy[0] = %d" , uut.RAM.Registers[1]);
+      $display("Memeroy[1] = %d" , uut.RAM.Registers[2]);
+      $display("Memeroy[2] = %d" , uut.RAM.Registers[3]);
+      $display("Memeroy[3] = %d" , uut.RAM.Registers[4]);
+      $display("Memeroy[4] = %d" , uut.RAM.Registers[5]);
       $display("fpr[3] = %b", uut.Fpr.Registers[3]);
       $display("fpr[2] = %b", uut.Fpr.Registers[2]);
       $display("fpr[1] = %b", uut.Fpr.Registers[1]);
