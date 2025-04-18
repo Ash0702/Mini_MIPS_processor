@@ -6,7 +6,7 @@ module CPU_tb;
     reg [31:0] inst_data;
     reg [9:0] address;
     reg write_instruction, write_data;
-    wire [31:0] OutputOfReg;
+    wire [31:0] OutputOfR1 , OutputOfR2 , OutputOfR3 , OutputOfR4 , OutputOfR5;
     reg [4:0] Read_Reg;
     wire done;
     // Instantiate the CPU
@@ -17,8 +17,11 @@ module CPU_tb;
         .address(address),
         .write_instruction(write_instruction),
         .write_data(write_data),
-        .OutputOfReg(OutputOfReg),
-        .Read_Reg(Read_Reg), 
+        .OutputOfR1(OutputOfR1),
+        .OutputOfR2(OutputOfR2),
+        .OutputOfR3(OutputOfR3),
+        .OutputOfR4(OutputOfR4),
+        .OutputOfR5(OutputOfR5),
         .done(done)
     );
     // Clock Generation
