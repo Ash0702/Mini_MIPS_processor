@@ -7,7 +7,6 @@ module CPU_tb;
     reg [9:0] address;
     reg write_instruction, write_data;
     wire [31:0] OutputOfR1 , OutputOfR2 , OutputOfR3 , OutputOfR4 , OutputOfR5;
-    reg [4:0] Read_Reg;
     wire done;
     // Instantiate the CPU
     CPU uut (
