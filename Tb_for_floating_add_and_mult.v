@@ -37,7 +37,6 @@ module CPU_tb;
         rst = 1;
         address = 0;
         write_instruction = 1;
-        Read_Reg = 0;
         write_data = 0; // load with 7,12,9,11,3
         #20;
         // Write the addi instruction to instruction memory at address 0
