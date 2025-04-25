@@ -10,6 +10,8 @@ This project implements a **Mini-MIPS processor** in Verilog with a 32-bit singl
 
 Instruction fetch, decode, execution, and control are modularized for clarity and maintainability.
 
+Uses the Distributed memory (Dual Port RAM) available from IP catalogue in Vivado
+
 ---
 
 ## Instruction Set Architecture
