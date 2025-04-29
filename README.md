@@ -137,6 +137,3 @@ The **Splitter** module handles decoding by extracting the appropriate fields fr
 
 ---
 
-# Developers 
-- Saksham Verma
-- Rohit Yadav  
